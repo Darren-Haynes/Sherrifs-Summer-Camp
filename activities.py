@@ -17,8 +17,8 @@ land = {
 }
 
 water = {
-    # tuple[0] min of num of people per land activity
-    # tuple[1] max of num of people per land activity
+    # tuple[0] min of num of people per water activity
+    # tuple[1] max of num of people per water activity
     "swimming": (6, 16),
     "fishing": (4, 7),
     "canoe": (6, 10),
