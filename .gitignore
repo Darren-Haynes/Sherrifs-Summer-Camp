@@ -1,5 +1,6 @@
 # Project Files
 .python-version
+TestData/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
