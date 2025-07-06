@@ -7,7 +7,7 @@ class SummerCamp:
     def __init__(self) -> None:
         self.main_data = self.instantiate_data()
         self.land = activities.land
-        self.land_totals = self.calc_land_totals()
+        self.water = activities.water
         self.assigned_activity = {k: v[0] for k, v in self.main_data.items()}
         self.land_1st_choice_totals = self.assigned_activity_totals()
         self.land_below_min, self.land_no_votes = self.calc_land_below_min()
@@ -17,10 +17,12 @@ class SummerCamp:
         self.land_10am = activities.tenAM_land
         self.land_9am_count = 0
         self.land_10am_count = 0
+        self.kids_min = self.calc_kids_min()
+        self.kids_max = self.calc_kids_max()
 
     def instantiate_data(self):
         data = {}
-        with open("TestData/rand-data.txt", "r") as file:
+        with open("TestData/rand-data3.txt", "r") as file:
             # with open("Data/orig-data.txt", "r") as file:
             lines = file.readlines()
             random.shuffle(lines)
@@ -28,6 +30,16 @@ class SummerCamp:
                 sep = line.strip().split(",")
                 data[sep[0]] = sep[1:]
         return data
+
+    def calc_kids_min(self):
+        land_min = sum([m[0] if m != 2 else m[0] * 2 for m in self.land.values()])
+        water_min = sum([m[0] if m != 2 else m[0] * 2 for m in self.water.values()])
+        return min(land_min, water_min)
+
+    def calc_kids_max(self):
+        land_max = sum([m[1] if m != 2 else m[1] * 2 for m in self.land.values()])
+        water_max = sum([m[1] if m != 2 else m[1] * 2 for m in self.water.values()])
+        return max(land_max, water_max)
 
     def filter_land_inbetween(self):
         inbetween = {}
@@ -49,14 +61,31 @@ class SummerCamp:
                 inbetween[activity] = shortfall
         return inbetween
 
-    def calc_land_totals(self):
-        totals = {}
-        for activity in self.land:
-            totals[activity] = 0
-        for data in self.main_data.values():
-            for activity in data[:3]:
-                totals[activity] += 1
-        return totals
+    def filter_sort_land_inbetween(self):
+        """
+        Returns a list of all the names that are above minumim and below or
+        equal to max of each activity, in order of activites that have the most
+        people to spare.
+        """
+        spare = []
+        for activity in self.land_inbetween.keys():
+            names = self.get_names_by_activity(activity)
+            minimum = self.land[activity][0]
+            actual = len(names)
+            if len(names) > minimum * 2:
+                minimum *= 2
+            available = actual - minimum
+            if available > 0:
+                max_names = random.sample(names, available)
+                spare.append((max_names, available))
+
+        spare.sort(key=lambda x: x[1], reverse=True)
+
+        spares = []
+        for s in spare:
+            for name in s[0]:
+                spares.append(name)
+        return spares
 
     def assigned_activity_totals(self):
         totals = {}
@@ -132,8 +161,18 @@ class SummerCamp:
             return True
         return False
 
+    def count_assigned_activity(self, activity):
+        count = 0
+        for name, choice in self.assigned_activity.items():
+            if choice == activity:
+                count += 1
+        return count
+
     def find_matching_inbetween_below_min(self, choices, main_activity):
         for choice, name in choices:
+            count = self.count_assigned_activity(choice)
+            if count <= self.land[choice][0]:
+                continue
             if choice in self.land_inbetween:
                 self.assigned_activity[name] = main_activity
                 self.land_1st_choice_totals[choice] -= 1
@@ -204,7 +243,7 @@ class SummerCamp:
                 filtered.append(activity)
         return filtered
 
-    def get_name_by_activity(self, activity):
+    def get_names_by_activity(self, activity):
         names = []
         for name, sport in self.assigned_activity.items():
             if sport == activity:
@@ -220,12 +259,14 @@ class SummerCamp:
         choice2 = []
         choice3 = []
         for activity in activity_list:
-            names = self.get_name_by_activity(activity)
+            names = self.get_names_by_activity(activity)
             for name in names:
                 if self.main_data[name][1] == main_activity:
                     choice2.append([activity, name])
                 if self.main_data[name][2] == main_activity:
                     choice3.append([activity, name])
+        random.shuffle(choice2)
+        random.shuffle(choice3)
         return choice2, choice3
 
     def above_max_to_not_maxed_out(self, main_activity):
@@ -238,13 +279,42 @@ class SummerCamp:
         if self.find_matching_inbetween(choice3, main_activity):
             return True
 
-        for name in no_choice:
-            # TODO complete this case scenario
-            print("NO CHOICE")
-            print(name)
+        return False
+
+    def below_min_to_not_maxed_out_no_match(self, main_activity):
+        """
+        This differs to function 'below_min_to_not_maxed_out' in that it doesn't
+        care about a persons 2nd or 3rd choice. If this function is running it's
+        because we have already exhausted 2nd and 3rd choice options. Now we
+        give some poor kid an activity they didn't ask for :(
+        """
+        print("HERE TOOOO")
+        names = self.filter_sort_land_inbetween()
+        print("NAMES")
+        print(names)
+        for name in names:
+            count = self.count_assigned_activity(main_activity)
+            if count == self.land[main_activity][0]:
+                break
+            curr_activity = self.assigned_activity[name]
+            self.assigned_activity[name] = main_activity
+            self.land_1st_choice_totals[curr_activity] -= 1
+            self.land_1st_choice_totals[main_activity] += 1
+            self.land_below_min[main_activity] += 1
+            self.land_inbetween[curr_activity] -= 1
+            if self.land_below_min[main_activity] == 0:
+                del self.land_below_min[main_activity]
+                self.land_inbetween[main_activity] = self.land[main_activity][0]
+                return True
         return False
 
     def below_min_to_not_maxed_out(self, main_activity):
+        """
+        For activities below the minimum threshold find an person we can
+        move from another activity to this one. The other acivity will be above
+        the min threshold and below the max threshold and thus have people to
+        spare. This function also honors a persons 2nd and 3rd choices.
+        """
         choice2, choice3 = self.get_2nd_3rd_choices_in_between(
             main_activity, self.land_inbetween
         )
@@ -255,9 +325,18 @@ class SummerCamp:
         if self.find_matching_inbetween_below_min(choice3, main_activity):
             return True
 
+        print("HERES BOB")
+        if self.below_min_to_not_maxed_out_no_match(main_activity):
+            return True
+
         return False
 
     def above_to_below(self, main_activity):
+        """
+        For activities above the max threshold find a person we can
+        move from this activity to one that is below the min threshold.
+        This function honors a persons 2nd and 3rd choices.
+        """
         choice2, choice3, no_choice = self.get_2nd_3rd_and_no_choices(
             main_activity, self.land_below_min
         )
@@ -271,10 +350,6 @@ class SummerCamp:
         if self.above_max_to_not_maxed_out(main_activity):
             return True
 
-        for name in no_choice:
-            # TODO complete this case scenario or delete it
-            print("NO CHOICE")
-            print(name)
         return False
 
     def calc_above_and_below(self):
@@ -318,6 +393,12 @@ class SummerCamp:
             # This shoudn't happen
             print("How did it come to this")
             pass
+
+    def error_checks(self):
+        kid_total = len(self.assigned_activity)
+        if kid_total > self.kids_max:
+            print("Too many children for activites")
+            print(f"{kid_total} children > {self.kids_max} max of all activites")
 
     def assign_land(self):
         """
@@ -377,6 +458,8 @@ class SummerCamp:
 
     def print_land(self, bounds=False):
         print("*** 9AM LAND ACTIVITIES ***")
+        names_count_9am = 0
+        names_count_10am = 0
         for activity, names in self.land_9am.items():
             if names:
                 print(f"{activity.upper()}: {', '.join(names)}")
@@ -385,6 +468,7 @@ class SummerCamp:
                     maxi = self.land[activity][1]
                     oob = min <= len(names) <= maxi
                     print(f"{oob} ||  Min: {min} -- Max: {maxi}  Actual: {len(names)}")
+                    names_count_9am += len(names)
         print("\n")
         print("*** 10AM LAND ACTIVITIES ***")
         for activity, names in self.land_10am.items():
@@ -395,3 +479,6 @@ class SummerCamp:
                     maxi = self.land[activity][1]
                     oob = min <= len(names) <= maxi
                     print(f"{oob} ||  Min: {min} -- Max: {maxi}  Actual: {len(names)}")
+                    names_count_10am += len(names)
+
+        print(f"PRINT COUNT:  9am = {names_count_9am} -- 10am = {names_count_10am}")
