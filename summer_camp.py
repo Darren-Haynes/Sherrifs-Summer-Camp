@@ -17,13 +17,18 @@ class SummerCamp:
         self.land_10am = activities.tenAM_land
         self.land_9am_count = 0
         self.land_10am_count = 0
-        self.kids_min = self.calc_kids_min()
-        self.kids_max = self.calc_kids_max()
 
     def instantiate_data(self):
+        """
+        Turn raw data file into the format:
+        {kids_name = [land_choice1, land_choice2, land_choice3,
+                      water_choice1, water_choice2, water_choice3]}
+        Each kid chooses their 3 prefered land activity choices and their 3
+        prefered water activities.
+        """
         data = {}
-        with open("TestData/rand-data3.txt", "r") as file:
-            # with open("Data/orig-data.txt", "r") as file:
+        # with open("TestData/rand-data-167-kids.txt", "r") as file:
+        with open("Data/orig-data.txt", "r") as file:
             lines = file.readlines()
             random.shuffle(lines)
             for line in lines:
@@ -31,17 +36,56 @@ class SummerCamp:
                 data[sep[0]] = sep[1:]
         return data
 
+    def calc_element_min(self, element):
+        """
+        Find the activity that can accomadate the least amount of kids.
+        """
+        count = -1
+        for values in element.values():
+            if count == -1:
+                count = values[0]
+            if values[0] < count:
+                count = values[0]
+        return count
+
     def calc_kids_min(self):
-        land_min = sum([m[0] if m != 2 else m[0] * 2 for m in self.land.values()])
-        water_min = sum([m[0] if m != 2 else m[0] * 2 for m in self.water.values()])
+        """
+        Find the least amount children the summer camp can accept by finding
+        which activity in land and water that can accept the least # of kids.
+        Then return the minimum of the 2.
+        """
+        land_min = self.calc_element_min(self.land)
+        water_min = self.calc_element_min(self.water)
         return min(land_min, water_min)
 
+    def calc_element_max(self, element):
+        """
+        Running total of the max amount of kids each activity can accomadate.
+        """
+        count = 0
+        for values in element.values():
+            count += values[1]
+            if values[2] == 2:
+                count += values[1]
+        return count
+
     def calc_kids_max(self):
-        land_max = sum([m[1] if m != 2 else m[1] * 2 for m in self.land.values()])
+        """
+        Find the most amount children the summer camp can accept by calculating
+        the most amount of kids each activity in land and water can accommodate.
+        Then return the greater of the 2.
+        """
+        land_max = self.calc_element_max(self.land)
         water_max = sum([m[1] if m != 2 else m[1] * 2 for m in self.water.values()])
         return max(land_max, water_max)
 
     def filter_land_inbetween(self):
+        """
+        land_inbetween meaning the activities children have chosen that are
+        >= to the min amount of kids allowed for that activity and <= the max
+        amount of kids. Thus we return the activities that have enough kids,
+        and filter out those activities that don't have enough kids or too many.
+        """
         inbetween = {}
         for activity in self.land.keys():
             if (
@@ -64,8 +108,8 @@ class SummerCamp:
     def filter_sort_land_inbetween(self):
         """
         Returns a list of all the names that are above minumim and below or
-        equal to max of each activity, in order of activites that have the most
-        people to spare.
+        equal to max of each activity, in sort by order of activites that have
+        the most people to spare.
         """
         spare = []
         for activity in self.land_inbetween.keys():
@@ -88,6 +132,11 @@ class SummerCamp:
         return spares
 
     def assigned_activity_totals(self):
+        """
+        Return the total amount of kids assigned to each activity.
+        Note that some activities have zero kids assigned and those activites
+        will be ommitted.
+        """
         totals = {}
         for activity in self.land:
             totals[activity] = 0
@@ -151,7 +200,6 @@ class SummerCamp:
         return False
 
     def choice_in_land_below_min_and_below_max(self, name, choice, main_activity):
-        # potential bug, not doubling for 9am and 10am combined
         self.assigned_activity[name] = choice
         self.land_1st_choice_totals[choice] += 1
         self.land_1st_choice_totals[main_activity] -= 1
@@ -288,10 +336,7 @@ class SummerCamp:
         because we have already exhausted 2nd and 3rd choice options. Now we
         give some poor kid an activity they didn't ask for :(
         """
-        print("HERE TOOOO")
         names = self.filter_sort_land_inbetween()
-        print("NAMES")
-        print(names)
         for name in names:
             count = self.count_assigned_activity(main_activity)
             if count == self.land[main_activity][0]:
@@ -325,7 +370,6 @@ class SummerCamp:
         if self.find_matching_inbetween_below_min(choice3, main_activity):
             return True
 
-        print("HERES BOB")
         if self.below_min_to_not_maxed_out_no_match(main_activity):
             return True
 
@@ -394,19 +438,57 @@ class SummerCamp:
             print("How did it come to this")
             pass
 
+    def too_many_kids(self):
+        """If there are more kids than the total of the maximum of either the
+        land of water activities than there are too many children for the camp.
+        """
+        count = self.calc_kids_max()
+        if count < len(self.main_data):
+            return (True, count)
+        return (False, count)
+
+    def not_enough_kids(self):
+        """
+        If there are less kids than the minumum kids allowed for the activity
+        that requires less kids than all other activities; then there are not
+        enough kids for the summer camp.
+        Returning "True" means that are not enought kids.
+        """
+        count = self.calc_kids_min()
+        if count > len(self.main_data):
+            return (True, count)
+        return (False, count)
+
     def error_checks(self):
-        kid_total = len(self.assigned_activity)
-        if kid_total > self.kids_max:
-            print("Too many children for activites")
-            print(f"{kid_total} children > {self.kids_max} max of all activites")
+        result = self.not_enough_kids()
+        if result[0]:
+            print(
+                f"Not enough children to accomadate any single activity.\nOnly {result[1]} children imported from data"
+            )
+            return True
+
+        result = self.too_many_kids()
+        if result[0]:
+            print(
+                f"Too many children for the amount of activities provided.\nOnly {result[1]} children imported from data. \nAdd additional land and water sports or reduce number or children"
+            )
+            return True
 
     def assign_land(self):
         """
         Main function that initiates the process of assigning kids to activities
         """
+        if self.error_checks():
+            print("Program aborted.")
+            return
+
         if self.land_above_max:
             for activity in list(self.land_above_max.keys()):
                 self.compare_above_to_below(activity)
+
+        if self.land_above_max:
+            print("LAND MAX STILL EXISTS")
+            print(self.land_above_max)
 
         if self.land_below_min:
             for activity in list(self.land_below_min.keys()):
