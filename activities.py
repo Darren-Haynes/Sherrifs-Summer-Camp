@@ -1,7 +1,7 @@
 land = {
     # tuple[0] min of num of people per land activity
     # tuple[1] max of num of people per land activity
-    # tuple[2] 0 = 9am, 1 = 10am, 2 = 9am & 10am activities
+    # tuple[2] 0 = 9am only, 1 = 10am only, 2 = 9am & 10am activities
     "basketball": [6, 12, 0],
     "volleyball": [6, 12, 0],
     "soccer": [6, 12, 0],
@@ -17,15 +17,15 @@ land = {
 }
 
 water = {
-    # tuple[0] min of num of people per land activity
-    # tuple[1] max of num of people per land activity
-    "swimming": (6, 16),
-    "fishing": (4, 7),
-    "canoe": (6, 10),
-    "snorkle": (4, 8),
-    "sailing": (6, 16),
-    "paddleboard": (4, 8),
-    "kayak": (6, 8),
+    # tuple[0] min of num of people per water activity
+    # tuple[1] max of num of people per water activity
+    "swimming": (6, 16, 2),
+    "fishing": (4, 7, 2),
+    "canoe": (6, 10, 2),
+    "snorkle": (4, 8, 2),
+    "sailing": (6, 16, 2),
+    "paddleboard": (4, 8, 2),
+    "kayak": (6, 8, 2),
 }
 
 nineAM_land = {
