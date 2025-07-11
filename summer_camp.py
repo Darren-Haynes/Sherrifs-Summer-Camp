@@ -28,10 +28,10 @@ class SummerCamp:
         """
         data = {}
         # with open("TestData/rand-data-100-kids.txt", "r") as file:
-        # with open("TestData/rand-data-118-archery.txt", "r") as file:
-        # with open("TestData/rand-data2.txt", "r") as file:
-        # with open("TestData/rand-data3.txt", "r") as file:  # 50 people
-        with open("Data/orig-data.txt", "r") as file:
+        with open("TestData/rand-data-118-archery.txt", "r") as file:
+            # with open("TestData/rand-data2.txt", "r") as file:
+            # with open("TestData/rand-data3.txt", "r") as file:  # 50 people
+            # with open("Data/orig-data.txt", "r") as file:
             lines = file.readlines()
             random.shuffle(lines)
             for line in lines:
