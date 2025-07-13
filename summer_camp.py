@@ -8,15 +8,23 @@ class SummerCamp:
         self.main_data = self.instantiate_data()
         self.land = activities.land
         self.water = activities.water
-        self.assigned_activity = {k: v[0] for k, v in self.main_data.items()}
+        self.assigned_land_activity = {k: v[0] for k, v in self.main_data.items()}
+        self.assigned_water_9am_activity = {}
+        self.assigned_water_10am_activity = {}
         self.land_1st_choice_totals = self.assigned_activity_totals()
         self.land_below_min, self.land_no_votes = self.calc_land_below_min()
         self.land_above_max = self.calc_land_above_max()
+        self.water_9am_above_max = self.calc_water_above_max()
+        self.water_9am_above_max = self.calc_water_above_max()
         self.land_inbetween = self.filter_land_inbetween()
         self.land_9am = activities.nineAM_land
         self.land_10am = activities.tenAM_land
+        self.water_9am = activities.nineAM_water
+        self.water_10am = activities.tenAM_water
         self.land_9am_count = 0
         self.land_10am_count = 0
+        self.kids_9am = []
+        self.kids_10am = []
 
     def instantiate_data(self):
         """
@@ -28,8 +36,9 @@ class SummerCamp:
         """
         data = {}
         # with open("TestData/rand-data-100-kids.txt", "r") as file:
-        with open("TestData/rand-data-118-archery.txt", "r") as file:
-            # with open("TestData/rand-data2.txt", "r") as file:
+        with open("TestData/rand-data-118-kids.txt", "r") as file:
+            # with open("TestData/rand-data-118-archery.txt", "r") as file:
+            # with open("TestData/rand-data2.txt", "r") as file:  # 100 people
             # with open("TestData/rand-data3.txt", "r") as file:  # 50 people
             # with open("Data/orig-data.txt", "r") as file:
             lines = file.readlines()
@@ -38,6 +47,20 @@ class SummerCamp:
                 sep = line.strip().split(",")
                 data[sep[0]] = sep[1:]
         return data
+
+    def instantiate_water(self):
+        """
+        Create lists of all the kids that have been assigned to 9am and 10am
+        time slots.
+        """
+        self.all_9am_and_10am_kids()
+        for kid in self.kids_9am:
+            choice = self.main_data[kid][3]
+            self.assigned_water_9am_activity[kid] = choice
+        for kid in self.kids_10am:
+            choice = self.main_data[kid][3]
+            self.assigned_water_10am_activity[kid] = choice
+        return
 
     def calc_element_min(self, element):
         """
@@ -106,6 +129,12 @@ class SummerCamp:
         zero_dict = OrderedDict({k: v for (k, v) in zero_votes})
         return below_dict, zero_dict
 
+    def calc_water_above_max(self):
+        above_max = []
+        above_max.sort(key=lambda x: x[1], reverse=True)
+        above_dict = OrderedDict({k: v for (k, v) in above_max})
+        return above_dict
+
     def calc_land_above_max(self):
         """
         Returns dict:
@@ -125,7 +154,7 @@ class SummerCamp:
 
     def count_assigned_activity(self, activity):
         count = 0
-        for choice in self.assigned_activity.values():
+        for choice in self.assigned_land_activity.values():
             if choice == activity:
                 count += 1
         return count
@@ -199,7 +228,7 @@ class SummerCamp:
 
     def update_choice_in_land_below_min(self, name, choice, main_activity):
         self.land_below_min[choice] += 1
-        self.assigned_activity[name] = choice
+        self.assigned_land_activity[name] = choice
         self.land_1st_choice_totals[choice] += 1
         self.land_1st_choice_totals[main_activity] -= 1
         self.land_above_max[main_activity] -= 1
@@ -214,7 +243,7 @@ class SummerCamp:
     def update_choice_in_land_below_min_and_below_max(
         self, name, choice, main_activity
     ):
-        self.assigned_activity[name] = choice
+        self.assigned_land_activity[name] = choice
         self.land_1st_choice_totals[choice] += 1
         self.land_1st_choice_totals[main_activity] -= 1
         self.land_above_max[main_activity] -= 1
@@ -229,7 +258,7 @@ class SummerCamp:
             if count <= self.land[choice][0]:
                 continue
             if choice in self.land_inbetween:
-                self.assigned_activity[name] = main_activity
+                self.assigned_land_activity[name] = main_activity
                 self.land_1st_choice_totals[choice] -= 1
                 self.land_1st_choice_totals[main_activity] += 1
                 self.land_below_min[main_activity] += 1
@@ -245,7 +274,7 @@ class SummerCamp:
             if self.count_assigned_activity(choice) >= self.get_activity_max(choice):
                 continue
             if choice in self.land_inbetween:
-                self.assigned_activity[name] = choice
+                self.assigned_land_activity[name] = choice
                 self.land_1st_choice_totals[choice] += 1
                 self.land_1st_choice_totals[main_activity] -= 1
                 self.land_above_max[main_activity] -= 1
@@ -289,7 +318,7 @@ class SummerCamp:
         choice2 = []
         choice3 = []
         no_choice = []
-        for name, choice1 in self.assigned_activity.items():
+        for name, choice1 in self.assigned_land_activity.items():
             if choice1 == main_activity:
                 if self.main_data[name][1] in activity_list:
                     choice2.append([name, self.main_data[name][1]])
@@ -301,7 +330,7 @@ class SummerCamp:
 
     def get_names_by_activity(self, activity):
         names = []
-        for name, sport in self.assigned_activity.items():
+        for name, sport in self.assigned_land_activity.items():
             if sport == activity:
                 names.append(name)
         return names
@@ -349,8 +378,8 @@ class SummerCamp:
             count = self.count_assigned_activity(main_activity)
             if count == self.land[main_activity][0]:
                 break
-            curr_activity = self.assigned_activity[name]
-            self.assigned_activity[name] = main_activity
+            curr_activity = self.assigned_land_activity[name]
+            self.assigned_land_activity[name] = main_activity
             self.land_1st_choice_totals[curr_activity] -= 1
             self.land_1st_choice_totals[main_activity] += 1
             self.land_below_min[main_activity] += 1
@@ -440,14 +469,14 @@ class SummerCamp:
         totals = {}
         for activity in self.land:
             totals[activity] = 0
-        for data in self.assigned_activity.values():
+        for data in self.assigned_land_activity.values():
             totals[data] += 1
         return totals
 
     def update_above_max(self, name, choice, activity):
         if self.count_assigned_activity(choice) == self.get_activity_max(choice):
             return False
-        self.assigned_activity[name] = choice
+        self.assigned_land_activity[name] = choice
         self.land_1st_choice_totals[choice] += 1
         self.land_1st_choice_totals[activity] -= 1
         self.land_above_max[activity] -= 1
@@ -515,7 +544,7 @@ class SummerCamp:
     def assign_land_timeslots(self):
         both = {}
         not_both = {}
-        for name, activity in self.assigned_activity.items():
+        for name, activity in self.assigned_land_activity.items():
             if activity in self.land_9am and activity in self.land_10am:
                 if self.land_1st_choice_totals[activity] >= self.land[activity][0] * 2:
                     if activity in both:
@@ -553,6 +582,7 @@ class SummerCamp:
                 else:
                     self.land_9am[activity] = names
                     self.land_9am_count += len(names)
+        return
 
     def print_land(self, bounds=False):
         print("*** 9AM LAND ACTIVITIES ***")
@@ -581,6 +611,17 @@ class SummerCamp:
 
         print(f"PRINT COUNT:  9am = {names_count_9am} -- 10am = {names_count_10am}")
 
+    def all_9am_and_10am_kids(self):
+        for names in self.land_9am.values():
+            self.kids_9am.extend(names)
+        for names in self.land_10am.values():
+            self.kids_10am.extend(names)
+        return
+
+    def assign_water(self):
+        self.instantiate_water()
+        return
+
     def error_too_many_kids(self):
         """If there are more kids than the total of the maximum of either the
         land of water activities than there are too many children for the camp.
@@ -595,7 +636,7 @@ class SummerCamp:
         If there are less kids than the minumum kids allowed for the activity
         that requires less kids than all other activities; then there are not
         enough kids for the summer camp.
-        Returning "True" means that are not enought kids.
+        Returning "True" means that are not enough kids.
         """
         count = self.calc_kids_min()
         if count > len(self.main_data):
