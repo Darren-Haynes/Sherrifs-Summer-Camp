@@ -197,7 +197,7 @@ class SummerCamp:
                 count += 1
         return count
 
-    def filter_activities(self, activities):
+    def filter_activities(self, activities, elem):
         """
         Since we will be taking people from these activities to boost the
         activities that are below min threshold, then we don't want to take from
@@ -206,7 +206,7 @@ class SummerCamp:
         """
         filtered = []
         for activity, below_max in activities.items():
-            if self.land[activity][0] == below_max:
+            if elem[activity][0] == below_max:
                 continue
             else:
                 filtered.append(activity)
@@ -304,20 +304,28 @@ class SummerCamp:
                     return True
         return False
 
-    def update_matching_inbetween(self, choices, main_activity):
+    def update_matching_inbetween(
+        self,
+        choices,
+        main_activity,
+        elem_inbetween,
+        elem_assigned,
+        elem_totals,
+        elem_above,
+    ):
         for name, choice in choices:
             if self.count_assigned_activity(choice) >= self.get_activity_max(choice):
                 continue
-            if choice in self.land_inbetween:
-                self.assigned_land_activity[name] = choice
-                self.land_1st_choice_totals[choice] += 1
-                self.land_1st_choice_totals[main_activity] -= 1
-                self.land_above_max[main_activity] -= 1
-                self.land_inbetween[choice] -= 1
-                if self.land_inbetween[choice] == 0:
-                    del self.land_inbetween[choice]
-                if self.land_above_max[main_activity] == 0:
-                    del self.land_above_max[main_activity]
+            if choice in elem_inbetween:
+                elem_assigned[name] = choice
+                elem_totals[choice] += 1
+                elem_totals[main_activity] -= 1
+                elem_above[main_activity] -= 1
+                elem_inbetween[choice] -= 1
+                if elem_inbetween[choice] == 0:
+                    del elem_inbetween[choice]
+                if elem_above[main_activity] == 0:
+                    del elem_above[main_activity]
                     return True
         return False
 
@@ -348,12 +356,12 @@ class SummerCamp:
             act_max *= 2
         return act_max
 
-    def get_2nd_3rd_and_no_choices(self, main_activity, activities):
+    def get_2nd_3rd_and_no_choices(self, main_activity, activities, elem_assigned):
         activity_list = activities.keys()
         choice2 = []
         choice3 = []
         no_choice = []
-        for name, choice1 in self.assigned_land_activity.items():
+        for name, choice1 in elem_assigned.items():
             if choice1 == main_activity:
                 if self.main_data[name][1] in activity_list:
                     choice2.append([name, self.main_data[name][1]])
@@ -370,12 +378,12 @@ class SummerCamp:
                 names.append(name)
         return names
 
-    def get_2nd_3rd_choices_in_between(self, main_activity, activities):
+    def get_2nd_3rd_choices_in_between(self, main_activity, activities, elem):
         """
         Find people who have 'cheer' as their 2nd and 3rd choice, starting with
         activities that are maxed out and closest to maxed out first.
         """
-        activity_list = self.filter_activities(activities)
+        activity_list = self.filter_activities(activities, elem)
         choice2 = []
         choice3 = []
         for activity in activity_list:
@@ -389,14 +397,30 @@ class SummerCamp:
         random.shuffle(choice3)
         return choice2, choice3
 
-    def above_max_to_not_maxed_out(self, main_activity):
+    def above_max_to_not_maxed_out(
+        self, main_activity, elem_inbetween, elem_assigned, elem_total, elem_above
+    ):
         choice2, choice3, no_choice = self.get_2nd_3rd_and_no_choices(
-            main_activity, self.land_inbetween
+            main_activity, elem_inbetween, elem_assigned
         )
-        if self.update_matching_inbetween(choice2, main_activity):
+        if self.update_matching_inbetween(
+            choice2,
+            main_activity,
+            elem_inbetween,
+            elem_assigned,
+            elem_total,
+            elem_above,
+        ):
             return True
 
-        if self.update_matching_inbetween(choice3, main_activity):
+        if self.update_matching_inbetween(
+            choice3,
+            main_activity,
+            elem_assigned,
+            elem_inbetween,
+            elem_total,
+            elem_above,
+        ):
             return True
 
         return False
@@ -425,7 +449,15 @@ class SummerCamp:
                 return True
         return False
 
-    def below_min_to_not_maxed_out(self, main_activity):
+    def below_min_to_not_maxed_out(
+        self,
+        main_activity,
+        elem_below,
+        elem_assigned,
+        elem_inbetween,
+        elem,
+        elem_totals,
+    ):
         """
         For activities below the minimum threshold find a person we can
         move from another activity to this one. The other acivity will be above
@@ -435,7 +467,7 @@ class SummerCamp:
         they have not requested.
         """
         choice2, choice3 = self.get_2nd_3rd_choices_in_between(
-            main_activity, self.land_inbetween
+            main_activity, elem_inbetween, elem
         )
 
         if self.update_matching_inbetween_below_min(choice2, main_activity):
@@ -449,14 +481,22 @@ class SummerCamp:
 
         return False
 
-    def above_to_below(self, main_activity):
+    def above_to_below(
+        self,
+        main_activity,
+        elem_below,
+        elem_assigned,
+        elem_inbetween,
+        elem_total,
+        elem_above,
+    ):
         """
         For activities above the max threshold find a person we can
         move from this activity to one that is below the min threshold.
         This function honors a persons 2nd and 3rd choices.
         """
         choice2, choice3, no_choice = self.get_2nd_3rd_and_no_choices(
-            main_activity, self.land_below_min
+            main_activity, elem_below, elem_assigned
         )
 
         if self.update_matching_below_min(choice2, main_activity):
@@ -465,7 +505,9 @@ class SummerCamp:
         if self.update_matching_below_min(choice3, main_activity):
             return True
 
-        if self.above_max_to_not_maxed_out(main_activity):
+        if self.above_max_to_not_maxed_out(
+            main_activity, elem_inbetween, elem_assigned, elem_total, elem_above
+        ):
             return True
 
         return False
@@ -538,35 +580,50 @@ class SummerCamp:
                 print("I shoulnt be talking yet")
         return
 
-    def assign_land(self):
+    def assign_element(
+        self, elem_above, elem_below, elem_inbetween, elem_assigned, elem, elem_total
+    ):
         """
         Main function that initiates the process of assigning kids to activities
         """
-        if self.error_checks():
-            print("Program aborted.")
-            return
-
         count = 0
-        while self.land_above_max or self.land_below_min:
-            if self.land_above_max and self.land_below_min:
-                for activity in list(self.land_above_max.keys()):
-                    self.above_to_below(activity)
+        while elem_above or elem_below:
+            if elem_above and elem_below:
+                for activity in list(elem_above.keys()):
+                    self.above_to_below(
+                        activity,
+                        elem_below,
+                        elem_assigned,
+                        elem_inbetween,
+                        elem_total,
+                        elem_above,
+                    )
 
-            if self.land_below_min:
-                for activity in list(self.land_below_min.keys()):
-                    self.below_min_to_not_maxed_out(activity)
+            if elem_below:
+                for activity in list(elem_below.keys()):
+                    # TODO: follow this through.
+                    self.below_min_to_not_maxed_out(
+                        activity,
+                        elem_below,
+                        elem_assigned,
+                        elem_inbetween,
+                        elem,
+                        elem_totals,
+                    )
 
-            if self.land_above_max and self.land_inbetween:
-                for activity in list(self.land_above_max.keys()):
-                    self.above_max_to_not_maxed_out(activity)
+            if elem_above and elem_inbetween:
+                for activity in list(elem_above.keys()):
+                    self.above_max_to_not_maxed_out(
+                        activity, elem_inbetween, elem_assigned
+                    )
 
-            if self.land_above_max:
-                for activity in list(self.land_above_max.keys()):
+            if elem_above:
+                for activity in list(elem_above.keys()):
                     act_count = self.count_assigned_activity(activity)
                     self.assign_choices(activity, 2, act_count)
 
-            if self.land_above_max:
-                for activity in list(self.land_above_max.keys()):
+            if elem_above:
+                for activity in list(elem_above.keys()):
                     act_count = self.count_assigned_activity(activity)
                     self.assign_choices(activity, 3, act_count)
 
@@ -575,6 +632,22 @@ class SummerCamp:
                 break
 
         self.assign_land_timeslots()
+        return
+
+    def assign_land(self):
+        if self.error_checks():
+            print("Program aborted.")
+            return
+
+        self.assign_element(
+            self.land_above_max,
+            self.land_below_min,
+            self.land_inbetween,
+            self.assigned_land_activity,
+            self.land,
+            self.land_1st_choice_totals,
+        )
+        return
 
     def assign_land_timeslots(self):
         both = {}
@@ -707,6 +780,9 @@ class SummerCamp:
         self.assign_water_above_max()
         self.assign_water_below_min()
         self.assign_water_inbetween()
+        self.assign_element(
+            self.water_9am_above_max, self.water_9am_below_min, self.water_9am_inbetween
+        )
         return
 
     def error_too_many_kids(self):
