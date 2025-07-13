@@ -11,12 +11,28 @@ class SummerCamp:
         self.assigned_land_activity = {k: v[0] for k, v in self.main_data.items()}
         self.assigned_water_9am_activity = {}
         self.assigned_water_10am_activity = {}
-        self.land_1st_choice_totals = self.assigned_activity_totals()
+        self.land_1st_choice_totals = self.assigned_activity_totals(
+            self.land, self.assigned_land_activity
+        )
+        self.water_9am_1st_choice_totals = {}
+        self.water_10am_1st_choice_totals = {}
         self.land_below_min, self.land_no_votes = self.calc_land_below_min()
+        self.water_9am_below_min = {}
+        self.water_9am_no_votes = {}
+        self.water_10am_below_min = {}
+        self.water_10am_no_votes = {}
         self.land_above_max = self.calc_land_above_max()
-        self.water_9am_above_max = self.calc_water_above_max()
-        self.water_9am_above_max = self.calc_water_above_max()
-        self.land_inbetween = self.filter_land_inbetween()
+        self.water_9am_above_max = {}
+        self.water_10am_above_max = {}
+        self.land_inbetween = self.filter_elems_inbetween(
+            self.land,
+            self.land_below_min,
+            self.land_above_max,
+            self.land_no_votes,
+            self.land_1st_choice_totals,
+        )
+        self.water_9am_inbetween = {}
+        self.water_10am_inbetween = {}
         self.land_9am = activities.nineAM_land
         self.land_10am = activities.tenAM_land
         self.water_9am = activities.nineAM_water
@@ -49,10 +65,6 @@ class SummerCamp:
         return data
 
     def instantiate_water(self):
-        """
-        Create lists of all the kids that have been assigned to 9am and 10am
-        time slots.
-        """
         self.all_9am_and_10am_kids()
         for kid in self.kids_9am:
             choice = self.main_data[kid][3]
@@ -105,6 +117,28 @@ class SummerCamp:
         water_max = sum([m[1] if m != 2 else m[1] * 2 for m in self.water.values()])
         return max(land_max, water_max)
 
+    def calc_water_below_min(self, choice_totals):
+        """
+        Returns dict:
+        key: activity -- such as archery or fishing
+        value: int of how many people the minimum allowed for that activity
+        """
+        below_min = []
+        zero_votes = []
+        for activity, total in choice_totals.items():
+            minimum = self.water[activity][0]
+            if total == 0:
+                zero_votes.append([activity, total - minimum])
+                continue
+            if total < minimum:
+                below_min.append([activity, total - minimum])
+        below_min.sort(key=lambda x: x[1])
+        zero_votes.sort(key=lambda x: x[1], reverse=True)
+
+        below_dict = OrderedDict({k: v for (k, v) in below_min})
+        zero_dict = OrderedDict({k: v for (k, v) in zero_votes})
+        return below_dict, zero_dict
+
     def calc_land_below_min(self):
         """
         Returns dict:
@@ -129,8 +163,12 @@ class SummerCamp:
         zero_dict = OrderedDict({k: v for (k, v) in zero_votes})
         return below_dict, zero_dict
 
-    def calc_water_above_max(self):
+    def calc_water_above_max(self, choice_totals):
         above_max = []
+        for activity, total in choice_totals.items():
+            maximum = self.water[activity][1]
+            if total > maximum:
+                above_max.append([activity, total - maximum])
         above_max.sort(key=lambda x: x[1], reverse=True)
         above_dict = OrderedDict({k: v for (k, v) in above_max})
         return above_dict
@@ -174,28 +212,25 @@ class SummerCamp:
                 filtered.append(activity)
         return filtered
 
-    def filter_land_inbetween(self):
+    def filter_elems_inbetween(
+        self, elem, elem_below, elem_above, elem_no_votes, elem_choice_totals
+    ):
         """
-        land_inbetween meaning the activities children have chosen that are
+        Inbetween meaning the activities children have chosen that are
         >= to the min amount of kids allowed for that activity and <= the max
         amount of kids. Thus we return the activities that have enough kids,
         and filter out those activities that don't have enough kids or too many.
         """
         inbetween = {}
-        for activity in self.land.keys():
+        for activity in elem.keys():
             if (
-                activity not in self.land_below_min
-                and activity not in self.land_above_max
-                and activity not in self.land_no_votes
+                activity not in elem_below
+                and activity not in elem_above
+                and activity not in elem_no_votes
             ):
-                shortfall = (
-                    self.land[activity][1] - self.land_1st_choice_totals[activity]
-                )
+                shortfall = elem[activity][1] - elem_choice_totals[activity]
                 if shortfall < 0:
-                    shortfall = (
-                        self.land[activity][1] * 2
-                        - self.land_1st_choice_totals[activity]
-                    )
+                    shortfall = elem[activity][1] * 2 - elem_choice_totals[activity]
 
                 inbetween[activity] = shortfall
         return inbetween
@@ -460,16 +495,16 @@ class SummerCamp:
             act_min *= 2
         return act_min <= act_count <= act_max
 
-    def assigned_activity_totals(self):
+    def assigned_activity_totals(self, elem, assigned):
         """
         Return the total amount of kids assigned to each activity.
         Note that some activities have zero kids assigned and those activites
         will be ommitted.
         """
         totals = {}
-        for activity in self.land:
+        for activity in elem:
             totals[activity] = 0
-        for data in self.assigned_land_activity.values():
+        for data in assigned.values():
             totals[data] += 1
         return totals
 
@@ -612,14 +647,66 @@ class SummerCamp:
         print(f"PRINT COUNT:  9am = {names_count_9am} -- 10am = {names_count_10am}")
 
     def all_9am_and_10am_kids(self):
+        """
+        Create lists of all the kids that have been assigned to 9am and 10am
+        time slots.
+        """
         for names in self.land_9am.values():
             self.kids_9am.extend(names)
         for names in self.land_10am.values():
             self.kids_10am.extend(names)
         return
 
+    def assign_water_above_max(self):
+        self.water_9am_above_max = self.calc_water_above_max(
+            self.water_9am_1st_choice_totals
+        )
+        self.water_10am_above_max = self.calc_water_above_max(
+            self.water_10am_1st_choice_totals
+        )
+        return
+
+    def assign_water_totals(self):
+        self.water_9am_1st_choice_totals = self.assigned_activity_totals(
+            self.water, self.assigned_water_9am_activity
+        )
+        self.water_10am_1st_choice_totals = self.assigned_activity_totals(
+            self.water, self.assigned_water_10am_activity
+        )
+        return
+
+    def assign_water_below_min(self):
+        self.water_9am_below_min, self.water_9am_no_votes = self.calc_water_below_min(
+            self.water_9am_1st_choice_totals
+        )
+        self.water_10am_below_min, self.water_10am_no_votes = self.calc_water_below_min(
+            self.water_10am_1st_choice_totals
+        )
+        return
+
+    def assign_water_inbetween(self):
+        self.water_9am_inbetween = self.filter_elems_inbetween(
+            self.water,
+            self.water_9am_below_min,
+            self.water_9am_above_max,
+            self.water_9am_no_votes,
+            self.water_9am_1st_choice_totals,
+        )
+        self.water_10am_inbetween = self.filter_elems_inbetween(
+            self.water,
+            self.water_10am_below_min,
+            self.water_10am_above_max,
+            self.water_10am_no_votes,
+            self.water_10am_1st_choice_totals,
+        )
+        return
+
     def assign_water(self):
         self.instantiate_water()
+        self.assign_water_totals()
+        self.assign_water_above_max()
+        self.assign_water_below_min()
+        self.assign_water_inbetween()
         return
 
     def error_too_many_kids(self):
