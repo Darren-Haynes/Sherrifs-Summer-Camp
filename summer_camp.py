@@ -1,5 +1,6 @@
-from collections import OrderedDict
 import random
+from collections import OrderedDict
+
 import activities
 
 
@@ -39,6 +40,8 @@ class SummerCamp:
         self.water_10am = activities.tenAM_water
         self.land_9am_count = 0
         self.land_10am_count = 0
+        self.water_9am_count = 0
+        self.water_10am_count = 0
         self.kids_9am = []
         self.kids_10am = []
 
@@ -243,7 +246,7 @@ class SummerCamp:
         """
         spare = []
         for activity in elem_inbetween.keys():
-            names = self.get_names_by_activity(activity)
+            names = self.get_names_by_activity(activity, elem_inbetween)
             minimum = elem[activity][0]
             actual = len(names)
             if len(names) > minimum * 2:
@@ -261,29 +264,39 @@ class SummerCamp:
                 spares.append(name)
         return spares
 
-    def update_choice_in_land_below_min(self, name, choice, main_activity):
-        self.land_below_min[choice] += 1
-        self.assigned_land_activity[name] = choice
-        self.land_1st_choice_totals[choice] += 1
-        self.land_1st_choice_totals[main_activity] -= 1
-        self.land_above_max[main_activity] -= 1
+    def update_choice_in_land_below_min(
+        self,
+        name,
+        choice,
+        main_activity,
+        elem_below,
+        elem_above,
+        elem_assigned,
+        elem_totals,
+    ):
+        elem_below[choice] += 1
+        elem_assigned[name] = choice
+        elem_totals[choice] += 1
+        elem_totals[main_activity] -= 1
+        elem_above[main_activity] -= 1
 
-        if self.land_below_min[choice] == 0:
-            del self.land_below_min[choice]
-        if self.land_above_max[main_activity] == 0:
-            del self.land_above_max[main_activity]
+        if elem_below[choice] == 0:
+            del elem_below[choice]
+
+        if elem_above[main_activity] == 0:
+            del elem_above[main_activity]
             return True
         return False
 
     def update_choice_in_land_below_min_and_below_max(
-        self, name, choice, main_activity
+        self, name, choice, main_activity, elem_assigned, elem_totals, elem_above
     ):
-        self.assigned_land_activity[name] = choice
-        self.land_1st_choice_totals[choice] += 1
-        self.land_1st_choice_totals[main_activity] -= 1
-        self.land_above_max[main_activity] -= 1
-        if self.land_above_max[main_activity] == 0:
-            del self.land_above_max[main_activity]
+        elem_assigned[name] = choice
+        elem_totals[choice] += 1
+        elem_totals[main_activity] -= 1
+        elem_above[main_activity] -= 1
+        if elem_above[main_activity] == 0:
+            del elem_above[main_activity]
             return True
         return False
 
@@ -299,7 +312,7 @@ class SummerCamp:
     ):
         for choice, name in choices:
             count = elem_assigned(choice)
-            if count <= self.land[choice][0]:
+            if count <= elem[choice][0]:
                 continue
             if choice in elem_inbetween:
                 elem_assigned[name] = main_activity
@@ -341,15 +354,32 @@ class SummerCamp:
                     return True
         return False
 
-    def update_matching_below_min(self, choices, main_activity):
+    def update_matching_below_min(
+        self,
+        choices,
+        main_activity,
+        elem_below,
+        elem_above,
+        elem_assigned,
+        elem_totals,
+        elem,
+    ):
         for name, choice in choices:
-            if choice in self.land_below_min:
-                if self.update_choice_in_land_below_min(name, choice, main_activity):
+            if choice in elem_below:
+                if self.update_choice_in_land_below_min(
+                    name,
+                    choice,
+                    main_activity,
+                    elem_below,
+                    elem_above,
+                    elem_assigned,
+                    elem_totals,
+                ):
                     return True
 
-            elif self.land_1st_choice_totals[choice] < self.land[choice][1]:
+            elif elem_totals[choice] < elem[choice][1]:
                 if self.update_choice_in_land_below_min_and_below_max(
-                    name, choice, main_activity
+                    name, choice, main_activity, elem_assigned, elem_totals, elem_above
                 ):
                     return True
         return False
@@ -383,14 +413,16 @@ class SummerCamp:
                     no_choice.append(name)
         return choice2, choice3, no_choice
 
-    def get_names_by_activity(self, activity):
+    def get_names_by_activity(self, activity, elem_assigned):
         names = []
-        for name, sport in self.assigned_land_activity.items():
+        for name, sport in elem_assigned.items():
             if sport == activity:
                 names.append(name)
         return names
 
-    def get_2nd_3rd_choices_in_between(self, main_activity, activities, elem):
+    def get_2nd_3rd_choices_in_between(
+        self, main_activity, activities, elem, elem_assigned
+    ):
         """
         Find people who have 'cheer' as their 2nd and 3rd choice, starting with
         activities that are maxed out and closest to maxed out first.
@@ -399,7 +431,7 @@ class SummerCamp:
         choice2 = []
         choice3 = []
         for activity in activity_list:
-            names = self.get_names_by_activity(activity)
+            names = self.get_names_by_activity(activity, elem_assigned)
             for name in names:
                 if self.main_data[name][1] == main_activity:
                     choice2.append([activity, name])
@@ -495,7 +527,7 @@ class SummerCamp:
         they have not requested.
         """
         choice2, choice3 = self.get_2nd_3rd_choices_in_between(
-            main_activity, elem_inbetween, elem
+            main_activity, elem_inbetween, elem, elem_assigned
         )
 
         if self.update_matching_inbetween_below_min(
@@ -546,10 +578,26 @@ class SummerCamp:
             main_activity, elem_below, elem_assigned
         )
 
-        if self.update_matching_below_min(choice2, main_activity):
+        if self.update_matching_below_min(
+            choice2,
+            main_activity,
+            elem_below,
+            elem_above,
+            elem_assigned,
+            elem_totals,
+            elem,
+        ):
             return True
 
-        if self.update_matching_below_min(choice3, main_activity):
+        if self.update_matching_below_min(
+            choice3,
+            main_activity,
+            elem_below,
+            elem_above,
+            elem_assigned,
+            elem_totals,
+            elem,
+        ):
             return True
 
         if self.above_max_to_not_maxed_out(
@@ -568,6 +616,7 @@ class SummerCamp:
         'above': total amount of activities in excess of the max people allowed.
 
         """
+        # TODO: remove this method if it is not called.
         below_min = abs(sum(self.land_below_min.values()))
         below_max = below_min
         above = sum(self.land_above_max.values())
@@ -620,8 +669,7 @@ class SummerCamp:
         elem_totals,
         elem_above,
     ):
-        # {k: v[choice_num] for k, v in self.main_data.items()}
-        names = self.get_names_by_activity(activity)
+        names = self.get_names_by_activity(activity, elem_assigned)
         act_max = self.get_activity_max(activity, elem, elem_assigned)
         count = 0
         no_action = 0
@@ -647,6 +695,7 @@ class SummerCamp:
                     )
                     count += 1
             else:
+                print(f"{activity}: {name}")
                 print("I shoulnt be talking yet")
         return
 
@@ -694,11 +743,12 @@ class SummerCamp:
                     )
 
             if elem_above:
+                choice_num = 2 if elem == self.land else 5
                 for activity in list(elem_above.keys()):
                     act_count = self.count_assigned_activity(activity, elem_assigned)
                     self.assign_choices(
                         activity,
-                        2,
+                        choice_num,
                         act_count,
                         elem,
                         elem_assigned,
@@ -707,23 +757,21 @@ class SummerCamp:
                     )
 
             if elem_above:
+                choice_num = 3 if elem == self.land else 6
                 for activity in list(elem_above.keys()):
                     act_count = self.count_assigned_activity(activity, elem_assigned)
                     self.assign_choices(
                         activity,
-                        3,
+                        choice_num,
                         act_count,
                         elem,
                         elem_assigned,
                         elem_totals,
                         elem_above,
                     )
-
             count += 1
             if count == 1:
                 break
-
-        self.assign_land_timeslots()
         return
 
     def assign_land(self):
@@ -739,6 +787,7 @@ class SummerCamp:
             self.land,
             self.land_1st_choice_totals,
         )
+        self.assign_land_timeslots()
         return
 
     def assign_land_timeslots(self):
@@ -784,32 +833,84 @@ class SummerCamp:
                     self.land_9am_count += len(names)
         return
 
-    def print_land(self, bounds=False):
-        print("*** 9AM LAND ACTIVITIES ***")
+    def assign_water_timeslots(self, elem_assigned, elem_time, elem_count):
+        for name, activity in elem_assigned.items():
+            if activity in elem_time:
+                elem_time[activity].append(name)
+            else:
+                elem_time[activity] = [name]
+            elem_count += 1
+        return
+
+    def print_land(self, title_txt, elem, elem_time1, elem_time2, bounds=False):
+        print(f"*** {title_txt} ***")
         names_count_9am = 0
         names_count_10am = 0
-        for activity, names in self.land_9am.items():
+        for activity, names in elem_time1.items():
             if names:
                 print(f"{activity.upper()}: {', '.join(names)}")
                 if bounds:
-                    min = self.land[activity][0]
-                    maxi = self.land[activity][1]
+                    min = elem[activity][0]
+                    maxi = elem[activity][1]
                     oob = min <= len(names) <= maxi
                     print(f"{oob} ||  Min: {min} -- Max: {maxi}  Actual: {len(names)}")
                     names_count_9am += len(names)
         print("\n")
         print("*** 10AM LAND ACTIVITIES ***")
-        for activity, names in self.land_10am.items():
+        for activity, names in elem_time2.items():
             if names:
                 print(f"{activity.upper()}: {', '.join(names)}")
                 if bounds:
-                    min = self.land[activity][0]
-                    maxi = self.land[activity][1]
+                    min = elem[activity][0]
+                    maxi = elem[activity][1]
                     oob = min <= len(names) <= maxi
                     print(f"{oob} ||  Min: {min} -- Max: {maxi}  Actual: {len(names)}")
                     names_count_10am += len(names)
 
+        print(
+            f"PRINT COUNT:  9am = {names_count_9am} -- 10am = {names_count_10am}",
+            end="\n\n",
+        )
+        return
+
+    def print_water(self, title_txt, elem, elem_time, bounds=False):
+        print(f"*** {title_txt} ***")
+        names_count_9am = 0
+        for activity, names in elem_time.items():
+            if names:
+                print(f"{activity.upper()}: {', '.join(names)}")
+                if bounds:
+                    min = elem[activity][0]
+                    maxi = elem[activity][1]
+                    oob = min <= len(names) <= maxi
+                    print(f"{oob} ||  Min: {min} -- Max: {maxi}  Actual: {len(names)}")
+                    names_count_9am += len(names)
+        print("\n")
+        return names_count_9am
+
+    def print_schedule(self, bounds=False):
+        self.print_land(
+            "9AM LAND ACTIVITIES",
+            self.land,
+            self.land_9am,
+            self.land_10am,
+            bounds=True,
+        )
+
+        names_count_9am = self.print_water(
+            "9AM WATER ACTIVITIES",
+            self.water,
+            self.water_9am,
+            bounds=True,
+        )
+        names_count_10am = self.print_water(
+            "10AM WATER ACTIVITIES",
+            self.water,
+            self.water_10am,
+            bounds=True,
+        )
         print(f"PRINT COUNT:  9am = {names_count_9am} -- 10am = {names_count_10am}")
+        return
 
     def all_9am_and_10am_kids(self):
         """
@@ -872,6 +973,7 @@ class SummerCamp:
         self.assign_water_above_max()
         self.assign_water_below_min()
         self.assign_water_inbetween()
+
         self.assign_element(
             self.water_9am_above_max,
             self.water_9am_below_min,
@@ -880,6 +982,10 @@ class SummerCamp:
             self.water,
             self.water_9am_1st_choice_totals,
         )
+        self.assign_water_timeslots(
+            self.assigned_water_9am_activity, self.water_9am, self.water_9am_count
+        )
+
         self.assign_element(
             self.water_10am_above_max,
             self.water_10am_below_min,
@@ -888,6 +994,11 @@ class SummerCamp:
             self.water,
             self.water_10am_1st_choice_totals,
         )
+
+        self.assign_water_timeslots(
+            self.assigned_water_10am_activity, self.water_10am, self.water_10am_count
+        )
+
         return
 
     def error_too_many_kids(self):
