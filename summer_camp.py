@@ -194,6 +194,10 @@ class SummerCamp:
         return above_dict
 
     def count_assigned_activity(self, activity, elem_assigned):
+        """
+        Return how many kids for a specific time-slot (land or water at 9am or
+        10am are the time-slots) are assigned to a specific activity.
+        """
         count = 0
         for choice in elem_assigned.values():
             if choice == activity:
@@ -311,7 +315,7 @@ class SummerCamp:
         elem_inbetween,
     ):
         for choice, name in choices:
-            count = elem_assigned(choice)
+            count = elem_assigned[choice]
             if count <= elem[choice][0]:
                 continue
             if choice in elem_inbetween:
@@ -398,20 +402,27 @@ class SummerCamp:
             act_max *= 2
         return act_max
 
-    def get_2nd_3rd_and_no_choices(self, main_activity, activities, elem_assigned):
-        activity_list = activities.keys()
+    def get_2nd_3rd_and_no_choices(
+        self, main_activity, elem_below, elem_assigned, elem, not_chosen=False
+    ):
+        activities_below = elem_below.keys()
         choice2 = []
         choice3 = []
         no_choice = []
+        land_2nd_choice = 1 if elem == self.land else 4
+        land_3rd_choice = 2 if elem == self.land else 5
         for name, choice1 in elem_assigned.items():
             if choice1 == main_activity:
-                if self.main_data[name][1] in activity_list:
-                    choice2.append([name, self.main_data[name][1]])
-                elif self.main_data[name][2] in activity_list:
-                    choice3.append([name, self.main_data[name][2]])
+                if self.main_data[name][land_2nd_choice] in activities_below:
+                    choice2.append([name, self.main_data[name][land_2nd_choice]])
+                elif self.main_data[name][land_3rd_choice] in activities_below:
+                    choice3.append([name, self.main_data[name][land_3rd_choice]])
                 else:
                     no_choice.append(name)
-        return choice2, choice3, no_choice
+
+        if not_chosen:
+            return no_choice
+        return choice2, choice3
 
     def get_names_by_activity(self, activity, elem_assigned):
         names = []
@@ -424,18 +435,20 @@ class SummerCamp:
         self, main_activity, activities, elem, elem_assigned
     ):
         """
-        Find people who have 'cheer' as their 2nd and 3rd choice, starting with
-        activities that are maxed out and closest to maxed out first.
+        Find people who have a specific activity as their 2nd and 3rd choice,
+        starting with activities that are maxed out and closest to maxed out first.
         """
         activity_list = self.filter_activities(activities, elem)
+        choice_num2 = 1 if elem == self.land else 4
+        choice_num3 = 2 if elem == self.land else 5
         choice2 = []
         choice3 = []
         for activity in activity_list:
             names = self.get_names_by_activity(activity, elem_assigned)
             for name in names:
-                if self.main_data[name][1] == main_activity:
+                if self.main_data[name][choice_num2] == main_activity:
                     choice2.append([activity, name])
-                if self.main_data[name][2] == main_activity:
+                if self.main_data[name][choice_num3] == main_activity:
                     choice3.append([activity, name])
         random.shuffle(choice2)
         random.shuffle(choice3)
@@ -450,8 +463,8 @@ class SummerCamp:
         elem_above,
         elem,
     ):
-        choice2, choice3, no_choice = self.get_2nd_3rd_and_no_choices(
-            main_activity, elem_inbetween, elem_assigned
+        choice2, choice3 = self.get_2nd_3rd_and_no_choices(
+            main_activity, elem_inbetween, elem_assigned, elem
         )
         if self.update_matching_inbetween(
             choice2,
@@ -555,6 +568,8 @@ class SummerCamp:
         if self.below_min_to_not_maxed_out_no_match(
             main_activity, elem, elem_assigned, elem_totals, elem_below, elem_inbetween
         ):
+            print("WE REACHED HERE")
+            print(main_activity)
             return True
 
         return False
@@ -574,8 +589,8 @@ class SummerCamp:
         move from this activity to one that is below the min threshold.
         This function honors a persons 2nd and 3rd choices.
         """
-        choice2, choice3, no_choice = self.get_2nd_3rd_and_no_choices(
-            main_activity, elem_below, elem_assigned
+        choice2, choice3 = self.get_2nd_3rd_and_no_choices(
+            main_activity, elem_below, elem_assigned, elem
         )
 
         if self.update_matching_below_min(
@@ -604,7 +619,6 @@ class SummerCamp:
             main_activity, elem_inbetween, elem_assigned, elem_totals, elem_above, elem
         ):
             return True
-
         return False
 
     def calc_above_and_below(self):
@@ -625,12 +639,17 @@ class SummerCamp:
         return below_min, below_max, above
 
     def within_bounds(self, activity, elem, elem_assigned):
+        """
+        Return True if the amount of kids assigned to an activity do not
+        exceed the max allowed or fall below the min allowed.
+        """
         act_min = elem[activity][0]
         act_max = elem[activity][1]
         act_count = self.count_assigned_activity(activity, elem_assigned)
-        if elem[activity][2] == 2 and act_count > act_min * 2:
-            act_max *= 2
-            act_min *= 2
+        if elem == self.land:
+            if elem[activity][2] == 2 and act_count > act_min * 2:
+                act_max *= 2
+                act_min *= 2
         return act_min <= act_count <= act_max
 
     def assigned_activity_totals(self, elem, assigned):
@@ -668,22 +687,30 @@ class SummerCamp:
         elem_assigned,
         elem_totals,
         elem_above,
+        elem_below,
     ):
         names = self.get_names_by_activity(activity, elem_assigned)
         act_max = self.get_activity_max(activity, elem, elem_assigned)
         count = 0
         no_action = 0
         for name in names:
+            print("Gimme a break")
+            print(f"ACTIVITY: {activity}")
             if count == act_count - act_max:
                 break
+
             if not self.within_bounds(activity, elem, elem_assigned):
-                choice = self.main_data[name][choice_num - 1]
+                choice = self.main_data[name][choice_num]
+                print(f"CHOICE WITHIN: {choice}")
+
                 if self.count_assigned_activity(
                     choice, elem_assigned
                 ) > self.get_activity_max(choice, elem, elem_assigned):
                     no_action += 1
+                    print("I CANT GET NO ACTION")
                     continue
                 else:
+                    print("I am about to update")
                     self.update_above_max(
                         name,
                         choice,
@@ -694,9 +721,22 @@ class SummerCamp:
                         elem_above,
                     )
                     count += 1
+
             else:
-                print(f"{activity}: {name}")
-                print("I shoulnt be talking yet")
+                print("I should not be talking yet")
+                print(name)
+                print(activity)
+                print(act_max)
+                print(act_count)
+                not_a_choice = self.get_2nd_3rd_and_no_choices(
+                    activity,
+                    elem_below,
+                    elem_assigned,
+                    elem,
+                    not_chosen=True,
+                )
+                print("NOT A CHOICE")
+                print(not_a_choice)
         return
 
     def assign_element(
@@ -707,6 +747,12 @@ class SummerCamp:
         """
         count = 0
         while elem_above or elem_below:
+            # Case 1:
+            # If at least one activity is overbooked and at least one is
+            # overbooked then move kids from overbooked to underbooked
+            # activities. Note this honors a kids 2nd and 3rd choice activities.
+            # If these choices don't match the underbooked activites, then no
+            # change is made.
             if elem_above and elem_below:
                 for activity in list(elem_above.keys()):
                     self.above_to_below(
@@ -719,6 +765,12 @@ class SummerCamp:
                         elem,
                     )
 
+            # Case 2:
+            # If at least one activity is overbooked and at least one is
+            # overbooked then move kids from overbooked to underbooked
+            # activities. Note this honors a kids 2nd and 3rd choice activities.
+            # If these choices don't match the underbooked activites, then no
+            # change is made.
             if elem_below:
                 for activity in list(elem_below.keys()):
                     # TODO: follow this through.
@@ -741,10 +793,13 @@ class SummerCamp:
                         elem_above,
                         elem,
                     )
-
+            #
             if elem_above:
-                choice_num = 2 if elem == self.land else 5
+                choice_num = 1 if elem == self.land else 4
+                print(f"CHOICE NUM: {choice_num}")
                 for activity in list(elem_above.keys()):
+                    print("ELEM INBETWEEN 1")
+                    print(elem_inbetween)
                     act_count = self.count_assigned_activity(activity, elem_assigned)
                     self.assign_choices(
                         activity,
@@ -754,11 +809,15 @@ class SummerCamp:
                         elem_assigned,
                         elem_totals,
                         elem_above,
+                        elem_below,
                     )
 
             if elem_above:
-                choice_num = 3 if elem == self.land else 6
+                choice_num = 2 if elem == self.land else 5
+                print(f"CHOICE NUM: {choice_num}")
                 for activity in list(elem_above.keys()):
+                    print("ELEM INBETWEEN 2")
+                    print(elem_inbetween)
                     act_count = self.count_assigned_activity(activity, elem_assigned)
                     self.assign_choices(
                         activity,
@@ -768,6 +827,7 @@ class SummerCamp:
                         elem_assigned,
                         elem_totals,
                         elem_above,
+                        elem_below,
                     )
             count += 1
             if count == 1:

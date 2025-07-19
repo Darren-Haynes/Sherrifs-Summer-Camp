@@ -14,3 +14,5 @@ if __name__ == "__main__":
     camp.assign_land()
     camp.assign_water()
     camp.print_schedule(bounds=True)
+    print(camp.water_9am_inbetween)
+    print(camp.water_10am_inbetween)
