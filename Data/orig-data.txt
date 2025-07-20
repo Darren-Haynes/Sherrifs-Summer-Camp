@@ -40,8 +40,8 @@ Frances Bolton,hiking,arts,volleyball,canoe,swimming,snorkle
 Daniel Holmes,arts,pickleball,hiking,fishing,kayak,sailing
 Stephen Mclaughlin,cheer,archery,football,sailing,kayak,sailing
 Evelyn Whitmore,hiking,archery,football,swimming,swimming,kayak
-Ashley Banta,volleyball,basketball,soccer,canoe,canoe,swimming
-Isabel Teasley,volleyball,basketball,lacrosse,kayak,kayak,paddleboard
+Ashley Banta,volleyball,basketball,soccer,canoe,kayak,swimming
+Isabel Teasley,volleyball,basketball,lacrosse,kayak,swimming,paddleboard
 John Kremer,cheer,volleyball,archery,kayak,snorkle,sailing
 Delores Lewis,basketball,soccer,arts,fishing,canoe,sailing
 Gerald Perez,pickleball,basketball,arts,paddleboard,fishing,paddleboard
