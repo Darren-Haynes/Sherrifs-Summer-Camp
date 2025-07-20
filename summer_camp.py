@@ -236,6 +236,8 @@ class SummerCamp:
                 and activity not in elem_no_votes
             ):
                 shortfall = elem[activity][1] - elem_choice_totals[activity]
+                if shortfall == 0:
+                    continue
                 if shortfall < 0:
                     shortfall = elem[activity][1] * 2 - elem_choice_totals[activity]
 
@@ -324,6 +326,8 @@ class SummerCamp:
                 elem_totals[main_activity] += 1
                 elem_below[main_activity] += 1
                 elem_inbetween[choice] -= 1
+                if elem_inbetween[choice] == 0:
+                    del elem_inbetween[choice]
                 if elem_below[main_activity] == 0:
                     del elem_below[main_activity]
                     elem_inbetween[main_activity] = elem[main_activity][0]
@@ -516,6 +520,8 @@ class SummerCamp:
             elem_totals[main_activity] += 1
             elem_below[main_activity] += 1
             elem_inbetween[curr_activity] -= 1
+            if elem_inbetween[curr_activity] == 0:
+                del elem_inbetween[curr_activity]
             if elem_below[main_activity] == 0:
                 del elem_below[main_activity]
                 elem_inbetween[main_activity] = elem[main_activity][0]
