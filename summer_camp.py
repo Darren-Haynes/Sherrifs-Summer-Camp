@@ -225,18 +225,18 @@ class SummerCamp:
 
     def update_matching_inbetween_below_min(self, choices, main_activity):
         for choice, name in choices:
-            count = self.count_assigned_activity(choice)
-            if count <= self.land[choice][0]:
+            count = self.count_assigned_activity(choice, elem_assigned)
+            if count <= elem[choice][0]:
                 continue
-            if choice in self.land_inbetween:
-                self.assigned_activity[name] = main_activity
-                self.land_1st_choice_totals[choice] -= 1
-                self.land_1st_choice_totals[main_activity] += 1
-                self.land_below_min[main_activity] += 1
-                self.land_inbetween[choice] -= 1
-                if self.land_below_min[main_activity] == 0:
-                    del self.land_below_min[main_activity]
-                    self.land_inbetween[main_activity] = self.land[main_activity][0]
+            if choice in elem_inbetween:
+                elem_assigned[name] = main_activity
+                elem_totals[choice] -= 1
+                elem_totals[main_activity] += 1
+                elem_below[main_activity] += 1
+                elem_inbetween[choice] -= 1
+                if elem_below[main_activity] == 0:
+                    del elem_below[main_activity]
+                    elem_inbetween[main_activity] = elem[main_activity][0]
                     return True
         return False
 
@@ -349,15 +349,15 @@ class SummerCamp:
             count = self.count_assigned_activity(main_activity)
             if count == self.land[main_activity][0]:
                 break
-            curr_activity = self.assigned_activity[name]
-            self.assigned_activity[name] = main_activity
-            self.land_1st_choice_totals[curr_activity] -= 1
-            self.land_1st_choice_totals[main_activity] += 1
-            self.land_below_min[main_activity] += 1
-            self.land_inbetween[curr_activity] -= 1
-            if self.land_below_min[main_activity] == 0:
-                del self.land_below_min[main_activity]
-                self.land_inbetween[main_activity] = self.land[main_activity][0]
+            curr_activity = elem_assigned[name]
+            elem_assigned[name] = main_activity
+            elem_totals[curr_activity] -= 1
+            elem_totals[main_activity] += 1
+            elem_below[main_activity] += 1
+            elem_inbetween[curr_activity] -= 1
+            if elem_below[main_activity] == 0:
+                del elem_below[main_activity]
+                elem_inbetween[main_activity] = elem[main_activity][0]
                 return True
         return False
 
@@ -483,10 +483,25 @@ class SummerCamp:
             return
 
         count = 0
-        while self.land_above_max or self.land_below_min:
-            if self.land_above_max and self.land_below_min:
-                for activity in list(self.land_above_max.keys()):
-                    self.above_to_below(activity)
+        # TODO: remove this count
+        while elem_above or elem_below:
+            # Case 1:
+            # If at least one activity is overbooked and at least one is
+            # overbooked then move kids from overbooked to underbooked
+            # activities. Note this honors a kids 2nd and 3rd choice activities.
+            # If these choices don't match the underbooked activites, then no
+            # change is made.
+            if elem_above and elem_below:
+                for activity in list(elem_above.keys()):
+                    self.above_to_below(
+                        activity,
+                        elem_below,
+                        elem_assigned,
+                        elem_inbetween,
+                        elem_totals,
+                        elem_above,
+                        elem,
+                    )
 
             if self.land_below_min:
                 for activity in list(self.land_below_min.keys()):
