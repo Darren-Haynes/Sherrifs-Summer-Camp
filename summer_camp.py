@@ -317,7 +317,7 @@ class SummerCamp:
         elem_inbetween,
     ):
         for choice, name in choices:
-            count = elem_assigned[choice]
+            count = self.count_assigned_activity(choice, elem_assigned)
             if count <= elem[choice][0]:
                 continue
             if choice in elem_inbetween:
@@ -326,8 +326,6 @@ class SummerCamp:
                 elem_totals[main_activity] += 1
                 elem_below[main_activity] += 1
                 elem_inbetween[choice] -= 1
-                if elem_inbetween[choice] == 0:
-                    del elem_inbetween[choice]
                 if elem_below[main_activity] == 0:
                     del elem_below[main_activity]
                     elem_inbetween[main_activity] = elem[main_activity][0]
@@ -335,6 +333,34 @@ class SummerCamp:
         return False
 
     def update_matching_inbetween(
+        self,
+        choices,
+        main_activity,
+        elem_inbetween,
+        elem_assigned,
+        elem_totals,
+        elem_above,
+        elem,
+    ):
+        for name, choice in choices:
+            if self.count_assigned_activity(
+                choice, elem_assigned
+            ) >= self.get_activity_max(choice, elem, elem_assigned):
+                continue
+            if choice in elem_inbetween:
+                elem_assigned[name] = choice
+                elem_totals[choice] += 1
+                elem_totals[main_activity] -= 1
+                elem_above[main_activity] -= 1
+                elem_inbetween[choice] -= 1
+                if elem_inbetween[choice] == 0:
+                    del elem_inbetween[choice]
+                if elem_above[main_activity] == 0:
+                    del elem_above[main_activity]
+                    return True
+        return False
+
+    def update_matching_exactly_min(
         self,
         choices,
         main_activity,
@@ -520,8 +546,6 @@ class SummerCamp:
             elem_totals[main_activity] += 1
             elem_below[main_activity] += 1
             elem_inbetween[curr_activity] -= 1
-            if elem_inbetween[curr_activity] == 0:
-                del elem_inbetween[curr_activity]
             if elem_below[main_activity] == 0:
                 del elem_below[main_activity]
                 elem_inbetween[main_activity] = elem[main_activity][0]
@@ -752,6 +776,7 @@ class SummerCamp:
         Main function that initiates the process of assigning kids to activities
         """
         count = 0
+        # TODO: remove this count
         while elem_above or elem_below:
             # Case 1:
             # If at least one activity is overbooked and at least one is
