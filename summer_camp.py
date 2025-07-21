@@ -1,5 +1,7 @@
-from collections import OrderedDict
+import csv
 import random
+from collections import OrderedDict
+
 import activities
 
 
@@ -595,6 +597,35 @@ class SummerCamp:
                     names_count_10am += len(names)
 
         print(f"PRINT COUNT:  9am = {names_count_9am} -- 10am = {names_count_10am}")
+
+    def output_to_csv(self):
+        """
+        Write all 4 time slots with the kids that are assigned to each activity.
+        """
+        with open("schedule.csv", "w", newline="") as csvfile:
+            elements = [
+                self.land_9am,
+                self.land_10am,
+                self.water_9am,
+                self.water_10am,
+            ]
+            titles = [
+                "9AM Land Activities",
+                "10AM Land Activities",
+                "9AM Water Activities",
+                "10AM Water Activities",
+            ]
+            for elem, title in list(zip(elements, titles)):
+                schedule_writer = csv.writer(
+                    csvfile,
+                    delimiter="\t",
+                    quotechar='"',
+                    quoting=csv.QUOTE_MINIMAL,
+                )
+                schedule_writer.writerow([title])
+                for activity, names in elem.items():
+                    schedule_writer.writerow([activity.upper()] + names)
+                schedule_writer.writerow([])
 
     def error_too_many_kids(self):
         """If there are more kids than the total of the maximum of either the

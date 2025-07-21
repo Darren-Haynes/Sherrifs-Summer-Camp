@@ -12,4 +12,8 @@ def activity_count(camp, activity, num=1):
 if __name__ == "__main__":
     camp = SummerCamp()
     camp.assign_land()
+    camp.assign_water()
+    camp.print_schedule(bounds=True)
+    camp.output_to_csv()
     camp.print_land(bounds=True)
+

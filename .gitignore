@@ -1,6 +1,8 @@
 # Project Files
 .python-version
 TestData/*
+schedule.csv
+.gitignore
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
