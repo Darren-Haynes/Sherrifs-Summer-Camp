@@ -48,7 +48,29 @@ class SummerCamp:
 
     def instantiate_data(self):
         """
-        Turn raw data file into the format:
+        Turn raw data from an excel sheet file into the format:
+        {kids_name = [land_choice1, land_choice2, land_choice3,
+                        water_choice1, water_choice2, water_choice3]}
+        Each kid chooses their 3 prefered land activity choices and their 3
+        prefered water activities.
+        """
+        data = {}
+        with open("TestData/rand-data-118-kids.txt", "r") as file:
+            # with open("TestData/keegans-data.txt", "r") as file:
+            lines = file.readlines()
+            random.shuffle(lines)
+            for line in lines:
+                sep = line.strip().split("\t")
+                name = " ".join(sep[0:2])
+                activities = []
+                for activity in sep[3:]:
+                    activities.append(activity.lower())
+                data[name] = activities
+        return data
+
+    def instantiate_data_txt(self):
+        """
+        Turn raw data from a text file into the format:
         {kids_name = [land_choice1, land_choice2, land_choice3,
                       water_choice1, water_choice2, water_choice3]}
         Each kid chooses their 3 prefered land activity choices and their 3
@@ -66,6 +88,7 @@ class SummerCamp:
             for line in lines:
                 sep = line.strip().split(",")
                 data[sep[0]] = sep[1:]
+        print(data)
         return data
 
     def instantiate_water(self):
